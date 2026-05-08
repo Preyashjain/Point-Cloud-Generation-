@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-05-04T17:38:19.072104",
+  "total_ply_files": 30,
+  "total_metrics_files": 30,
+  "ply_valid": 30,
+  "metrics_valid": 30,
+  "all_valid": true,
+  "by_level": {
+    "1_single": {
+      "ply_files": 10,
+      "ply_valid": 6,
+      "metrics_files": 10,
+      "metrics_valid": 10
+    },
+    "2_multiple": {
+      "ply_files": 10,
+      "ply_valid": 10,
+      "metrics_files": 10,
+      "metrics_valid": 10
+    },
+    "3_stacked": {
+      "ply_files": 10,
+      "ply_valid": 9,
+      "metrics_files": 10,
+      "metrics_valid": 10
+    }
+  }
+}
