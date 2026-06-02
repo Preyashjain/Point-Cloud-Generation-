@@ -9,7 +9,6 @@ from src.core.reconstructor import (
     ReconstructionResult,
     PoseResult,
     save_ply,
-    save_obj,
 )
 from src.core.depth_estimator import (
     DepthEstimator,
@@ -30,7 +29,6 @@ __all__ = [
     "ReconstructionResult",
     "PoseResult",
     "save_ply",
-    "save_obj",
     "DepthEstimator",
     "align_depth_to_metric",
     "depth_to_pointcloud",

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Eval Report</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Consolas,Menlo,monospace;font-size:12px;background:#0d1117;color:#c9d1d9;padding:20px}
+h1{font-size:16px;color:#58a6ff;margin-bottom:3px}
+.sub{color:#8b949e;margin-bottom:12px;font-size:11px}
+.bar{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+input,select{background:#161b22;color:#c9d1d9;border:1px solid #30363d;
+             padding:4px 7px;outline:none;font:inherit}
+input:focus,select:focus{border-color:#58a6ff}
+input{width:240px}
+#count{color:#8b949e;font-size:11px}
+table{border-collapse:collapse;width:100%}
+th{background:#161b22;padding:5px 9px;text-align:left;
+   border:1px solid #30363d;cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{background:#1c2128}
+th.asc::after{content:" ▲";color:#58a6ff}
+th.desc::after{content:" ▼";color:#58a6ff}
+td{padding:4px 9px;border:1px solid #21262d;white-space:nowrap}
+tr:nth-child(even) td{background:#090d13}
+tr:hover td{background:#1c2128!important}
+.sp{color:#79c0ff}.de{color:#d2a8ff}
+.g{color:#56d364}.y{color:#e3b341}.r{color:#f85149}.dim{color:#4a5568}
+ol{padding-left:3em}
+code{font-family:monospace;color:lightgray}
+.leg{border-collapse:collapse;width:100%;margin-top:4px}
+.leg th{background:#161b22;padding:5px 9px;border:1px solid #30363d;
+        text-align:left;white-space:nowrap;font-weight:bold}
+.leg td{padding:5px 9px;border:1px solid #21262d;vertical-align:top;line-height:1.5}
+.leg tr:nth-child(even) td{background:#090d13}
+.cn{color:#e3b341;white-space:nowrap;font-weight:bold}
+</style>
+</head>
+<body>
+<h1>Point Cloud Evaluation Report</h1>
+<div class="sub" id="sub"></div>
+<div class="bar">
+  <input id="q" placeholder="filter sample…" oninput="render()">
+  <select id="tag" onchange="render()">
+    <option value="">all tags</option>
+    <option value="sparse">sparse</option>
+    <option value="dense">dense</option>
+  </select>
+  <span id="count"></span>
+</div>
+<table>
+<thead><tr>
+  <th onclick="sort('sample_id')">Sample</th>
+  <th onclick="sort('tag')">Type</th>
+  <th onclick="sort('scale_factor')">Scale</th>
+  <th onclick="sort('num_pred')">Pred pts</th>
+  <th onclick="sort('num_gt')">GT pts</th>
+  <th onclick="sort('chamfer_symmetric')">Chamfer ↓</th>
+  <th onclick="sort('hausdorff')">Hausdorff ↓</th>
+  <th onclick="sort('f1')">F@1%</th>
+  <th onclick="sort('f2')">F@2%</th>
+  <th onclick="sort('f5')">F@5% ↑</th>
+  <th onclick="sort('p5')">P@5%</th>
+  <th onclick="sort('r5')">R@5%</th>
+  <th onclick="sort('alignment')">Alignment</th>
+</tr></thead>
+<tbody id="tb"></tbody>
+</table>
+<br>
+<h2 style="color:#58a6ff;font-size:14px;margin-bottom:8px">Column Reference</h2>
+<table class="leg">
+<thead><tr>
+  <th>Column</th>
+  <th>What it measures</th>
+  <th>Unit / range</th>
+  <th>Ideal value</th>
+  <th>Color thresholds</th>
+</tr></thead>
+<tbody>
+<tr>
+  <td class="cn">Sample</td>
+  <td>Dataset identifier: object / scenario / orientation</td>
+  <td>—</td>
+  <td>—</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td class="cn">Type</td>
+  <td><span class="sp">sparse</span> = SfM feature-point cloud only.
+      <span class="de">dense</span> = depth-model densification added on top</td>
+  <td>—</td>
+  <td>dense preferred for full coverage</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td class="cn">Scale</td>
+  <td>GT bounding-box diagonal ÷ pred diagonal after centroid alignment.
+      Reflects how well the focal length is calibrated. &lt;1 means pred is
+      too large (focal too short); &gt;1 means pred is too small (focal too long).</td>
+  <td>dimensionless</td>
+  <td class="g">1.000</td>
+  <td><span class="g">±10%</span> · <span class="y">±30%</span> · <span class="r">else</span></td>
+</tr>
+<tr>
+  <td class="cn">Pred pts</td>
+  <td>Number of predicted 3D points after all filters. More is generally
+      better for coverage, but quality matters more than quantity.</td>
+  <td>integer</td>
+  <td>dense: 200K–1M; sparse: 5K–50K</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td class="cn">GT pts</td>
+  <td>Number of laser-scan ground-truth points. Fixed per sample.</td>
+  <td>integer</td>
+  <td>—</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td class="cn">Chamfer ↓</td>
+  <td>Symmetric mean nearest-neighbour distance: average over all pred→GT
+      distances and all GT→pred distances, then averaged. The primary
+      continuous quality metric — penalises both inaccurate points and
+      missing surface coverage equally.</td>
+  <td>mm (GT units)</td>
+  <td class="g">&lt; 10 mm</td>
+  <td><span class="g">&lt;10</span> · <span class="y">&lt;20</span> · <span class="r">≥20</span></td>
+</tr>
+<tr>
+  <td class="cn">Hausdorff ↓</td>
+  <td>Worst-case nearest-neighbour distance: the single largest gap between
+      any GT point and its closest predicted point (or vice-versa). Very
+      sensitive to outliers and unscanned regions.</td>
+  <td>mm (GT units)</td>
+  <td class="g">&lt; 40 mm</td>
+  <td><span class="g">&lt;40</span> · <span class="y">&lt;80</span> · <span class="r">≥80</span></td>
+</tr>
+<tr>
+  <td class="cn">F@1%</td>
+  <td>F-score at τ = 1% of GT diagonal (≈2.3 mm for this dataset).
+      A strict threshold — only sub-millimetre-accurate points count.
+      Sparse clouds rarely exceed 0.10 here.</td>
+  <td>0–1</td>
+  <td class="g">≥ 0.50</td>
+  <td><span class="g">≥0.50</span> · <span class="y">≥0.30</span> · <span class="r">&lt;0.30</span></td>
+</tr>
+<tr>
+  <td class="cn">F@2%</td>
+  <td>F-score at τ = 2% of GT diagonal (≈4.6 mm). Medium threshold,
+      the main balance point between precision and recall.</td>
+  <td>0–1</td>
+  <td class="g">≥ 0.50</td>
+  <td><span class="g">≥0.50</span> · <span class="y">≥0.30</span> · <span class="r">&lt;0.30</span></td>
+</tr>
+<tr>
+  <td class="cn">F@5% ↑</td>
+  <td>F-score at τ = 5% of GT diagonal (≈11.4 mm). The headline benchmark
+      metric used to compare methods. Harmonic mean of P@5% and R@5%.
+      Best single number for overall reconstruction quality.</td>
+  <td>0–1</td>
+  <td class="g">≥ 0.50 (dense)</td>
+  <td><span class="g">≥0.50</span> · <span class="y">≥0.30</span> · <span class="r">&lt;0.30</span></td>
+</tr>
+<tr>
+  <td class="cn">P@5%</td>
+  <td>Precision at 5%: fraction of predicted points that land within τ of
+      any GT point. High precision = few outlier/floating points.
+      Low precision = the cloud is noisy or geometrically wrong.</td>
+  <td>0–1</td>
+  <td class="g">≥ 0.50</td>
+  <td><span class="g">≥0.50</span> · <span class="y">≥0.30</span> · <span class="r">&lt;0.30</span></td>
+</tr>
+<tr>
+  <td class="cn">R@5%</td>
+  <td>Recall at 5%: fraction of GT points that have at least one predicted
+      point within τ nearby. High recall = good surface coverage.
+      Low recall = large parts of the object are missing.</td>
+  <td>0–1</td>
+  <td class="g">≥ 0.50</td>
+  <td><span class="g">≥0.50</span> · <span class="y">≥0.30</span> · <span class="r">&lt;0.30</span></td>
+</tr>
+<tr>
+  <td class="cn">Alignment</td>
+  <td>Method used to align pred to GT before computing metrics.
+      <em>centroid+scale</em>: translate to same centroid, then scale pred
+      bounding box to match GT. <em>+ICP</em>: iterative closest point
+      refinement applied afterward (requires open3d).</td>
+  <td>—</td>
+  <td>centroid+scale+ICP</td>
+  <td>—</td>
+</tr>
+</tbody>
+</table>
+
+<br>
+<h2 style="color:#58a6ff;font-size:14px;margin-bottom:8px">Reading the numbers at a glance</h2>
+<table class="leg">
+<thead><tr><th>Symptom</th><th>Likely cause</th><th>Fix</th></tr></thead>
+<tbody>
+<tr><td>Scale ≪ 1 (e.g. 0.4)</td><td>Focal length set too short → triangulated cloud is too large</td><td>Increase <code>focal_length_mm</code>; use scale-hint formula: f_new = f / √scale</td></tr>
+<tr><td>Scale ≫ 1 (e.g. 1.5)</td><td>Focal length set too long → cloud is too small</td><td>Decrease <code>focal_length_mm</code></td></tr>
+<tr><td>High P, low R</td><td>Cloud is precise but incomplete — missing surface area</td><td>Run with <code>--depth</code>; lower <code>frame_stride</code></td></tr>
+<tr><td>Low P, high R</td><td>Many outlier/ghost points — cloud is noisy</td><td>Tighten SOR (<code>--outlier-std 2.0</code>); check focal length</td></tr>
+<tr><td>High Hausdorff, ok Chamfer</td><td>One large unscanned region or a cluster of outliers far away</td><td>Density filter removes outliers; depth pass fills gaps</td></tr>
+<tr><td>sparse ≈ dense quality</td><td>Depth model not improving coverage — likely bad depth scale reference</td><td>Inspect sparse P: if &lt; 0.3 the sparse is too noisy to guide depth</td></tr>
+</tbody>
+</table>
+
+<br>
+<h2 style="color:#58a6ff;font-size:14px;margin-bottom:6px">How it works</h2>
+<p>The pipeline is implemented the following way:</p>
+<ol>
+  <li>Video Frame extraction (Size: 3840x2160, Stride: 5)</li>
+  <li>Feature extraction using SuperPoint</li>
+  <li>Feature matching using LightGlue</li>
+  <li>Camera matrix reconstruction using the following info from the dataset README.txt "The videos were captured
+    using an orbit rig with a Nikon D780 camera at 41 cm height, 45° inclination, 40 cm horizontal distance to the
+    platform center axis.". We always assume an orbital video uniformly covering the object</li>
+  <li>Triangulation with Hierarchical Localization (HLoc), such that keypoints are shared across multiple frames</li>
+  <li>Apply statistical outlier removal (SOR) algorithm to remove points too far away from standard deviation times
+    some factor plus its mean</li>
+  <li>All points too far away from world center are also discarded</li>
+  <li>Lastly points are filtered by density. All outliers are filtered out, while correctly captured points are kept
+  </li>
+  <li>Then an output is created for those sparsely collected and filtered points</li>
+  <li>Additionally, with the <code>--depth</code> flag set, the points are then given to the Depth Anything v2 model
+    to densify the points. The points are then downsampled using voxels of 2mm</li>
+</ol>
+<script>
+const DATA = [{"sample_id":"G-LS-I-LO-33/1_single/orientation_a","tag":"dense","alignment":"centroid+scale","scale_factor":0.971662,"num_pred":500000,"num_gt":1234775,"gt_diagonal":228.8281,"chamfer_pred_to_gt":25.7446,"chamfer_gt_to_pred":21.7978,"chamfer_symmetric":23.7712,"hausdorff":77.2183,"precision@1%":0.0386,"recall@1%":0.2554,"fscore@1%":0.0671,"precision@2%":0.0782,"recall@2%":0.2951,"fscore@2%":0.1236,"precision@5%":0.2209,"recall@5%":0.3992,"fscore@5%":0.2844},{"sample_id":"G-LS-I-LO-33/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":0.970874,"num_pred":12480,"num_gt":1234775,"gt_diagonal":228.8281,"chamfer_pred_to_gt":12.5032,"chamfer_gt_to_pred":23.4882,"chamfer_symmetric":17.9957,"hausdorff":80.8072,"precision@1%":0.0721,"recall@1%":0.0458,"fscore@1%":0.056,"precision@2%":0.1822,"recall@2%":0.1221,"fscore@2%":0.1462,"precision@5%":0.5028,"recall@5%":0.2952,"fscore@5%":0.372},{"sample_id":"G-LS-I-LO-33/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":0.872532,"num_pred":13144,"num_gt":1239728,"gt_diagonal":228.2899,"chamfer_pred_to_gt":10.8701,"chamfer_gt_to_pred":22.2888,"chamfer_symmetric":16.5795,"hausdorff":76.4555,"precision@1%":0.0915,"recall@1%":0.0863,"fscore@1%":0.0888,"precision@2%":0.2263,"recall@2%":0.164,"fscore@2%":0.1901,"precision@5%":0.6334,"recall@5%":0.324,"fscore@5%":0.4287},{"sample_id":"G-LS-I-LO-33/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.569164,"num_pred":61264,"num_gt":1070441,"gt_diagonal":229.0653,"chamfer_pred_to_gt":16.3912,"chamfer_gt_to_pred":19.983,"chamfer_symmetric":18.1871,"hausdorff":66.4456,"precision@1%":0.0681,"recall@1%":0.1788,"fscore@1%":0.0987,"precision@2%":0.1646,"recall@2%":0.2762,"fscore@2%":0.2063,"precision@5%":0.4299,"recall@5%":0.4028,"fscore@5%":0.4159},{"sample_id":"G-LS-I-LO-33/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.494225,"num_pred":47317,"num_gt":1058047,"gt_diagonal":235.4784,"chamfer_pred_to_gt":18.9753,"chamfer_gt_to_pred":22.686,"chamfer_symmetric":20.8307,"hausdorff":80.65,"precision@1%":0.044,"recall@1%":0.104,"fscore@1%":0.0618,"precision@2%":0.1108,"recall@2%":0.1688,"fscore@2%":0.1338,"precision@5%":0.372,"recall@5%":0.3249,"fscore@5%":0.3469},{"sample_id":"G-LS-P-LO-34/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":1.466535,"num_pred":17072,"num_gt":1221986,"gt_diagonal":232.7397,"chamfer_pred_to_gt":16.316,"chamfer_gt_to_pred":14.6317,"chamfer_symmetric":15.4739,"hausdorff":52.6927,"precision@1%":0.0717,"recall@1%":0.1357,"fscore@1%":0.0938,"precision@2%":0.1442,"recall@2%":0.2874,"fscore@2%":0.192,"precision@5%":0.3317,"recall@5%":0.5302,"fscore@5%":0.4081},{"sample_id":"G-LS-P-LO-34/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":0.819483,"num_pred":11379,"num_gt":1232353,"gt_diagonal":227.358,"chamfer_pred_to_gt":12.346,"chamfer_gt_to_pred":19.0496,"chamfer_symmetric":15.6978,"hausdorff":71.9293,"precision@1%":0.0946,"recall@1%":0.1113,"fscore@1%":0.1023,"precision@2%":0.2014,"recall@2%":0.2168,"fscore@2%":0.2088,"precision@5%":0.5352,"recall@5%":0.4025,"fscore@5%":0.4595},{"sample_id":"G-LS-P-LO-34/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.546153,"num_pred":47723,"num_gt":1078771,"gt_diagonal":232.8504,"chamfer_pred_to_gt":17.2199,"chamfer_gt_to_pred":24.5847,"chamfer_symmetric":20.9023,"hausdorff":72.2004,"precision@1%":0.0309,"recall@1%":0.098,"fscore@1%":0.0469,"precision@2%":0.088,"recall@2%":0.1563,"fscore@2%":0.1126,"precision@5%":0.3927,"recall@5%":0.2713,"fscore@5%":0.3209},{"sample_id":"G-LS-P-LO-34/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.538668,"num_pred":49537,"num_gt":1029538,"gt_diagonal":233.368,"chamfer_pred_to_gt":15.3261,"chamfer_gt_to_pred":24.0124,"chamfer_symmetric":19.6692,"hausdorff":73.7266,"precision@1%":0.0536,"recall@1%":0.1404,"fscore@1%":0.0775,"precision@2%":0.1442,"recall@2%":0.2123,"fscore@2%":0.1717,"precision@5%":0.5041,"recall@5%":0.3466,"fscore@5%":0.4108},{"sample_id":"G-MS-I-HI-4/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":0.810309,"num_pred":6575,"num_gt":1266344,"gt_diagonal":226.5423,"chamfer_pred_to_gt":11.6094,"chamfer_gt_to_pred":23.9575,"chamfer_symmetric":17.7834,"hausdorff":83.9248,"precision@1%":0.2037,"recall@1%":0.0581,"fscore@1%":0.0904,"precision@2%":0.3656,"recall@2%":0.1305,"fscore@2%":0.1923,"precision@5%":0.6765,"recall@5%":0.286,"fscore@5%":0.402},{"sample_id":"G-MS-I-HI-4/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":0.798739,"num_pred":7174,"num_gt":1268402,"gt_diagonal":229.6428,"chamfer_pred_to_gt":5.4136,"chamfer_gt_to_pred":25.4746,"chamfer_symmetric":15.4441,"hausdorff":81.741,"precision@1%":0.3444,"recall@1%":0.0557,"fscore@1%":0.0958,"precision@2%":0.627,"recall@2%":0.1243,"fscore@2%":0.2075,"precision@5%":0.9133,"recall@5%":0.2554,"fscore@5%":0.3991},{"sample_id":"G-MS-I-HI-4/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.71605,"num_pred":44263,"num_gt":1211322,"gt_diagonal":229.7982,"chamfer_pred_to_gt":11.7297,"chamfer_gt_to_pred":22.1306,"chamfer_symmetric":16.9302,"hausdorff":70.2491,"precision@1%":0.1516,"recall@1%":0.116,"fscore@1%":0.1314,"precision@2%":0.3069,"recall@2%":0.1768,"fscore@2%":0.2244,"precision@5%":0.5949,"recall@5%":0.3204,"fscore@5%":0.4165},{"sample_id":"G-MS-I-HI-4/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.615741,"num_pred":65684,"num_gt":1188369,"gt_diagonal":230.5869,"chamfer_pred_to_gt":12.5948,"chamfer_gt_to_pred":21.701,"chamfer_symmetric":17.1479,"hausdorff":74.3645,"precision@1%":0.1246,"recall@1%":0.1052,"fscore@1%":0.1141,"precision@2%":0.2821,"recall@2%":0.1644,"fscore@2%":0.2078,"precision@5%":0.5977,"recall@5%":0.3011,"fscore@5%":0.4004},{"sample_id":"G-MS-I-LO-1/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":1.275806,"num_pred":6455,"num_gt":1253501,"gt_diagonal":228.1475,"chamfer_pred_to_gt":10.3602,"chamfer_gt_to_pred":22.5528,"chamfer_symmetric":16.4565,"hausdorff":74.4781,"precision@1%":0.088,"recall@1%":0.0511,"fscore@1%":0.0647,"precision@2%":0.1981,"recall@2%":0.1339,"fscore@2%":0.1598,"precision@5%":0.6466,"recall@5%":0.3108,"fscore@5%":0.4198},{"sample_id":"G-MS-I-LO-1/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":0.834413,"num_pred":14458,"num_gt":1255939,"gt_diagonal":227.0816,"chamfer_pred_to_gt":9.0171,"chamfer_gt_to_pred":25.489,"chamfer_symmetric":17.253,"hausdorff":88.0328,"precision@1%":0.1328,"recall@1%":0.0619,"fscore@1%":0.0844,"precision@2%":0.2888,"recall@2%":0.1328,"fscore@2%":0.1819,"precision@5%":0.7476,"recall@5%":0.2831,"fscore@5%":0.4106},{"sample_id":"G-MS-I-LO-1/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.605051,"num_pred":49457,"num_gt":1155219,"gt_diagonal":229.5268,"chamfer_pred_to_gt":14.7519,"chamfer_gt_to_pred":24.1297,"chamfer_symmetric":19.4408,"hausdorff":72.3541,"precision@1%":0.1005,"recall@1%":0.1026,"fscore@1%":0.1015,"precision@2%":0.2258,"recall@2%":0.1546,"fscore@2%":0.1836,"precision@5%":0.5325,"recall@5%":0.2823,"fscore@5%":0.369},{"sample_id":"G-MS-I-LO-1/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.439204,"num_pred":58587,"num_gt":1120694,"gt_diagonal":229.2921,"chamfer_pred_to_gt":12.2491,"chamfer_gt_to_pred":27.6548,"chamfer_symmetric":19.9519,"hausdorff":80.7192,"precision@1%":0.0914,"recall@1%":0.0795,"fscore@1%":0.085,"precision@2%":0.2261,"recall@2%":0.1091,"fscore@2%":0.1472,"precision@5%":0.5921,"recall@5%":0.214,"fscore@5%":0.3143},{"sample_id":"G-MS-O-LO-10/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":1.09277,"num_pred":7301,"num_gt":1271323,"gt_diagonal":226.2741,"chamfer_pred_to_gt":10.0353,"chamfer_gt_to_pred":31.5175,"chamfer_symmetric":20.7764,"hausdorff":93.8775,"precision@1%":0.2026,"recall@1%":0.0276,"fscore@1%":0.0486,"precision@2%":0.3405,"recall@2%":0.0727,"fscore@2%":0.1198,"precision@5%":0.7046,"recall@5%":0.193,"fscore@5%":0.303},{"sample_id":"G-MS-O-LO-10/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":1.060453,"num_pred":5373,"num_gt":1265678,"gt_diagonal":226.998,"chamfer_pred_to_gt":7.5501,"chamfer_gt_to_pred":30.0994,"chamfer_symmetric":18.8248,"hausdorff":84.1064,"precision@1%":0.2191,"recall@1%":0.0418,"fscore@1%":0.0702,"precision@2%":0.5176,"recall@2%":0.0752,"fscore@2%":0.1313,"precision@5%":0.8848,"recall@5%":0.1724,"fscore@5%":0.2886},{"sample_id":"G-MS-O-LO-10/1_single/orientation_c","tag":"sparse","alignment":"centroid+scale","scale_factor":0.770643,"num_pred":5889,"num_gt":1266912,"gt_diagonal":226.7457,"chamfer_pred_to_gt":5.8906,"chamfer_gt_to_pred":32.1446,"chamfer_symmetric":19.0176,"hausdorff":83.1689,"precision@1%":0.2951,"recall@1%":0.0348,"fscore@1%":0.0623,"precision@2%":0.629,"recall@2%":0.0674,"fscore@2%":0.1218,"precision@5%":0.9073,"recall@5%":0.1635,"fscore@5%":0.2771},{"sample_id":"G-MS-O-LO-10/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.652505,"num_pred":79563,"num_gt":1209210,"gt_diagonal":227.2133,"chamfer_pred_to_gt":14.2385,"chamfer_gt_to_pred":22.7928,"chamfer_symmetric":18.5157,"hausdorff":74.0936,"precision@1%":0.1065,"recall@1%":0.1218,"fscore@1%":0.1136,"precision@2%":0.2168,"recall@2%":0.1739,"fscore@2%":0.193,"precision@5%":0.4711,"recall@5%":0.3007,"fscore@5%":0.3671},{"sample_id":"G-MS-O-LO-10/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.808201,"num_pred":67541,"num_gt":1212667,"gt_diagonal":227.4967,"chamfer_pred_to_gt":16.8694,"chamfer_gt_to_pred":21.4185,"chamfer_symmetric":19.1439,"hausdorff":72.403,"precision@1%":0.0886,"recall@1%":0.1139,"fscore@1%":0.0997,"precision@2%":0.1875,"recall@2%":0.1635,"fscore@2%":0.1747,"precision@5%":0.4239,"recall@5%":0.3132,"fscore@5%":0.3603},{"sample_id":"G-MS-O-LO-2/1_single","tag":"sparse","alignment":"centroid+scale","scale_factor":0.778913,"num_pred":7625,"num_gt":1271589,"gt_diagonal":226.2243,"chamfer_pred_to_gt":8.0715,"chamfer_gt_to_pred":25.1035,"chamfer_symmetric":16.5875,"hausdorff":79.3206,"precision@1%":0.2521,"recall@1%":0.0331,"fscore@1%":0.0585,"precision@2%":0.4957,"recall@2%":0.086,"fscore@2%":0.1466,"precision@5%":0.8268,"recall@5%":0.2432,"fscore@5%":0.3758},{"sample_id":"G-MS-O-LO-2/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.58997,"num_pred":82038,"num_gt":1230742,"gt_diagonal":226.6932,"chamfer_pred_to_gt":16.3443,"chamfer_gt_to_pred":21.283,"chamfer_symmetric":18.8137,"hausdorff":74.6883,"precision@1%":0.0996,"recall@1%":0.1274,"fscore@1%":0.1118,"precision@2%":0.19,"recall@2%":0.1876,"fscore@2%":0.1888,"precision@5%":0.4252,"recall@5%":0.326,"fscore@5%":0.3691},{"sample_id":"G-MS-O-LO-2/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.546771,"num_pred":90834,"num_gt":1212083,"gt_diagonal":226.9659,"chamfer_pred_to_gt":14.7549,"chamfer_gt_to_pred":21.9336,"chamfer_symmetric":18.3442,"hausdorff":75.6777,"precision@1%":0.1088,"recall@1%":0.1198,"fscore@1%":0.114,"precision@2%":0.2131,"recall@2%":0.1679,"fscore@2%":0.1878,"precision@5%":0.479,"recall@5%":0.2954,"fscore@5%":0.3654},{"sample_id":"G-TS-O-HI-7/1_single","tag":"sparse","alignment":"centroid+scale","scale_factor":0.974891,"num_pred":3450,"num_gt":1272337,"gt_diagonal":247.9869,"chamfer_pred_to_gt":11.318,"chamfer_gt_to_pred":30.0907,"chamfer_symmetric":20.7044,"hausdorff":97.0268,"precision@1%":0.1899,"recall@1%":0.033,"fscore@1%":0.0562,"precision@2%":0.351,"recall@2%":0.0914,"fscore@2%":0.1451,"precision@5%":0.7586,"recall@5%":0.2626,"fscore@5%":0.3901},{"sample_id":"G-TS-O-HI-7/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.595407,"num_pred":17539,"num_gt":1253642,"gt_diagonal":233.4686,"chamfer_pred_to_gt":11.0894,"chamfer_gt_to_pred":24.9925,"chamfer_symmetric":18.0409,"hausdorff":88.6166,"precision@1%":0.1445,"recall@1%":0.058,"fscore@1%":0.0828,"precision@2%":0.2711,"recall@2%":0.1108,"fscore@2%":0.1573,"precision@5%":0.5787,"recall@5%":0.2534,"fscore@5%":0.3525},{"sample_id":"G-TS-O-HI-7/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.905942,"num_pred":24339,"num_gt":1260329,"gt_diagonal":226.4234,"chamfer_pred_to_gt":14.4849,"chamfer_gt_to_pred":23.4836,"chamfer_symmetric":18.9843,"hausdorff":86.8133,"precision@1%":0.1109,"recall@1%":0.0837,"fscore@1%":0.0954,"precision@2%":0.2106,"recall@2%":0.1444,"fscore@2%":0.1713,"precision@5%":0.4591,"recall@5%":0.3083,"fscore@5%":0.3689},{"sample_id":"G-TS-P-HI-3/1_single","tag":"sparse","alignment":"centroid+scale","scale_factor":0.782815,"num_pred":6966,"num_gt":1270405,"gt_diagonal":226.2794,"chamfer_pred_to_gt":14.0815,"chamfer_gt_to_pred":23.8353,"chamfer_symmetric":18.9584,"hausdorff":74.5926,"precision@1%":0.1738,"recall@1%":0.0459,"fscore@1%":0.0726,"precision@2%":0.333,"recall@2%":0.117,"fscore@2%":0.1731,"precision@5%":0.6382,"recall@5%":0.3014,"fscore@5%":0.4095},{"sample_id":"G-TS-P-HI-3/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.715484,"num_pred":35980,"num_gt":1242186,"gt_diagonal":226.4304,"chamfer_pred_to_gt":15.9862,"chamfer_gt_to_pred":21.9859,"chamfer_symmetric":18.986,"hausdorff":73.7539,"precision@1%":0.1163,"recall@1%":0.0962,"fscore@1%":0.1053,"precision@2%":0.2011,"recall@2%":0.1763,"fscore@2%":0.1879,"precision@5%":0.4341,"recall@5%":0.3418,"fscore@5%":0.3825},{"sample_id":"G-TS-P-HI-3/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.69077,"num_pred":45355,"num_gt":1238630,"gt_diagonal":227.1781,"chamfer_pred_to_gt":12.1236,"chamfer_gt_to_pred":21.3711,"chamfer_symmetric":16.7473,"hausdorff":69.2634,"precision@1%":0.1706,"recall@1%":0.0959,"fscore@1%":0.1228,"precision@2%":0.3154,"recall@2%":0.1587,"fscore@2%":0.2111,"precision@5%":0.5904,"recall@5%":0.3169,"fscore@5%":0.4124},{"sample_id":"G-TS-P-HI-5/1_single","tag":"sparse","alignment":"centroid+scale","scale_factor":0.89395,"num_pred":3645,"num_gt":1272181,"gt_diagonal":226.2823,"chamfer_pred_to_gt":7.3539,"chamfer_gt_to_pred":26.985,"chamfer_symmetric":17.1695,"hausdorff":72.7095,"precision@1%":0.2425,"recall@1%":0.0325,"fscore@1%":0.0573,"precision@2%":0.4469,"recall@2%":0.0785,"fscore@2%":0.1336,"precision@5%":0.8192,"recall@5%":0.2154,"fscore@5%":0.3411},{"sample_id":"G-TS-P-HI-5/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.826223,"num_pred":16202,"num_gt":1263203,"gt_diagonal":226.4484,"chamfer_pred_to_gt":12.576,"chamfer_gt_to_pred":24.3338,"chamfer_symmetric":18.4549,"hausdorff":94.5067,"precision@1%":0.1266,"recall@1%":0.0658,"fscore@1%":0.0866,"precision@2%":0.2466,"recall@2%":0.1142,"fscore@2%":0.1561,"precision@5%":0.5293,"recall@5%":0.2619,"fscore@5%":0.3504},{"sample_id":"G-TS-P-HI-5/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":1.022209,"num_pred":10824,"num_gt":1266443,"gt_diagonal":226.4239,"chamfer_pred_to_gt":9.6671,"chamfer_gt_to_pred":25.9586,"chamfer_symmetric":17.8129,"hausdorff":80.5028,"precision@1%":0.1605,"recall@1%":0.0506,"fscore@1%":0.0769,"precision@2%":0.2992,"recall@2%":0.1078,"fscore@2%":0.1585,"precision@5%":0.6798,"recall@5%":0.2552,"fscore@5%":0.3711},{"sample_id":"M-MS-P-HI-35/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":0.793818,"num_pred":5515,"num_gt":1265399,"gt_diagonal":226.5454,"chamfer_pred_to_gt":14.6748,"chamfer_gt_to_pred":25.7767,"chamfer_symmetric":20.2258,"hausdorff":85.2046,"precision@1%":0.0927,"recall@1%":0.0371,"fscore@1%":0.053,"precision@2%":0.2112,"recall@2%":0.1019,"fscore@2%":0.1374,"precision@5%":0.5938,"recall@5%":0.2626,"fscore@5%":0.3641},{"sample_id":"M-MS-P-HI-35/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":0.81248,"num_pred":5874,"num_gt":1264620,"gt_diagonal":226.6791,"chamfer_pred_to_gt":12.8157,"chamfer_gt_to_pred":27.9178,"chamfer_symmetric":20.3667,"hausdorff":85.533,"precision@1%":0.1549,"recall@1%":0.0395,"fscore@1%":0.0629,"precision@2%":0.2991,"recall@2%":0.0867,"fscore@2%":0.1345,"precision@5%":0.6903,"recall@5%":0.2441,"fscore@5%":0.3607},{"sample_id":"M-MS-P-HI-35/1_single/orientation_c","tag":"sparse","alignment":"centroid+scale","scale_factor":0.890909,"num_pred":6685,"num_gt":1266930,"gt_diagonal":226.9972,"chamfer_pred_to_gt":11.1225,"chamfer_gt_to_pred":26.2347,"chamfer_symmetric":18.6786,"hausdorff":86.6147,"precision@1%":0.1746,"recall@1%":0.0443,"fscore@1%":0.0707,"precision@2%":0.3521,"recall@2%":0.096,"fscore@2%":0.1509,"precision@5%":0.7038,"recall@5%":0.2535,"fscore@5%":0.3728},{"sample_id":"M-MS-P-HI-35/1_single/orientation_d","tag":"sparse","alignment":"centroid+scale","scale_factor":0.81347,"num_pred":6973,"num_gt":1265869,"gt_diagonal":226.6907,"chamfer_pred_to_gt":13.6033,"chamfer_gt_to_pred":24.8211,"chamfer_symmetric":19.2122,"hausdorff":85.7767,"precision@1%":0.1494,"recall@1%":0.0524,"fscore@1%":0.0776,"precision@2%":0.2938,"recall@2%":0.1343,"fscore@2%":0.1844,"precision@5%":0.6026,"recall@5%":0.3043,"fscore@5%":0.4044},{"sample_id":"M-MS-P-HI-35/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.685478,"num_pred":33547,"num_gt":1184648,"gt_diagonal":226.9865,"chamfer_pred_to_gt":15.0299,"chamfer_gt_to_pred":20.7656,"chamfer_symmetric":17.8978,"hausdorff":72.0517,"precision@1%":0.1007,"recall@1%":0.0988,"fscore@1%":0.0998,"precision@2%":0.2225,"recall@2%":0.1785,"fscore@2%":0.1981,"precision@5%":0.4776,"recall@5%":0.3215,"fscore@5%":0.3843},{"sample_id":"M-MS-P-HI-35/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.754983,"num_pred":36203,"num_gt":1158439,"gt_diagonal":228.156,"chamfer_pred_to_gt":16.7265,"chamfer_gt_to_pred":20.6732,"chamfer_symmetric":18.6998,"hausdorff":77.7015,"precision@1%":0.0878,"recall@1%":0.1086,"fscore@1%":0.0971,"precision@2%":0.2228,"recall@2%":0.1808,"fscore@2%":0.1996,"precision@5%":0.4652,"recall@5%":0.3194,"fscore@5%":0.3788},{"sample_id":"M-TS-P-HI-16/1_single","tag":"sparse","alignment":"centroid+scale","scale_factor":1.18541,"num_pred":3872,"num_gt":1271330,"gt_diagonal":226.2584,"chamfer_pred_to_gt":8.361,"chamfer_gt_to_pred":31.8939,"chamfer_symmetric":20.1275,"hausdorff":92.4376,"precision@1%":0.2038,"recall@1%":0.0259,"fscore@1%":0.046,"precision@2%":0.4081,"recall@2%":0.0591,"fscore@2%":0.1032,"precision@5%":0.8476,"recall@5%":0.1921,"fscore@5%":0.3132},{"sample_id":"M-TS-P-HI-16/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.812636,"num_pred":9390,"num_gt":1264877,"gt_diagonal":226.447,"chamfer_pred_to_gt":8.0443,"chamfer_gt_to_pred":26.3573,"chamfer_symmetric":17.2008,"hausdorff":92.9542,"precision@1%":0.2184,"recall@1%":0.0363,"fscore@1%":0.0623,"precision@2%":0.3753,"recall@2%":0.0824,"fscore@2%":0.1351,"precision@5%":0.7689,"recall@5%":0.2115,"fscore@5%":0.3318},{"sample_id":"M-TS-P-HI-16/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":1.212821,"num_pred":9116,"num_gt":1267708,"gt_diagonal":226.5051,"chamfer_pred_to_gt":12.316,"chamfer_gt_to_pred":31.8087,"chamfer_symmetric":22.0624,"hausdorff":93.1063,"precision@1%":0.1625,"recall@1%":0.0368,"fscore@1%":0.0601,"precision@2%":0.2974,"recall@2%":0.064,"fscore@2%":0.1053,"precision@5%":0.5841,"recall@5%":0.1698,"fscore@5%":0.2631},{"sample_id":"R-LS-I-HI-36/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":0.959686,"num_pred":12349,"num_gt":1250796,"gt_diagonal":227.0427,"chamfer_pred_to_gt":13.1341,"chamfer_gt_to_pred":25.0555,"chamfer_symmetric":19.0948,"hausdorff":76.3406,"precision@1%":0.0781,"recall@1%":0.0594,"fscore@1%":0.0675,"precision@2%":0.1671,"recall@2%":0.1246,"fscore@2%":0.1428,"precision@5%":0.5243,"recall@5%":0.2693,"fscore@5%":0.3558},{"sample_id":"R-LS-I-HI-36/1_single/orientation_d","tag":"sparse","alignment":"centroid+scale","scale_factor":1.182209,"num_pred":13728,"num_gt":1232277,"gt_diagonal":228.8132,"chamfer_pred_to_gt":12.7325,"chamfer_gt_to_pred":20.799,"chamfer_symmetric":16.7658,"hausdorff":75.6126,"precision@1%":0.0745,"recall@1%":0.0828,"fscore@1%":0.0785,"precision@2%":0.1642,"recall@2%":0.1847,"fscore@2%":0.1738,"precision@5%":0.4817,"recall@5%":0.3607,"fscore@5%":0.4125},{"sample_id":"R-LS-I-HI-36/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.4472,"num_pred":65523,"num_gt":1067932,"gt_diagonal":229.9071,"chamfer_pred_to_gt":12.3798,"chamfer_gt_to_pred":28.5864,"chamfer_symmetric":20.4831,"hausdorff":84.0673,"precision@1%":0.1136,"recall@1%":0.1013,"fscore@1%":0.1071,"precision@2%":0.2848,"recall@2%":0.1434,"fscore@2%":0.1907,"precision@5%":0.6289,"recall@5%":0.2403,"fscore@5%":0.3478},{"sample_id":"R-LS-I-HI-36/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.42431,"num_pred":41775,"num_gt":1109762,"gt_diagonal":231.543,"chamfer_pred_to_gt":14.3964,"chamfer_gt_to_pred":27.126,"chamfer_symmetric":20.7612,"hausdorff":79.9433,"precision@1%":0.0675,"recall@1%":0.0741,"fscore@1%":0.0706,"precision@2%":0.1659,"recall@2%":0.1219,"fscore@2%":0.1405,"precision@5%":0.4752,"recall@5%":0.2067,"fscore@5%":0.2881},{"sample_id":"R-LS-P-LO-31/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":0.777954,"num_pred":14773,"num_gt":1241561,"gt_diagonal":230.3386,"chamfer_pred_to_gt":9.5201,"chamfer_gt_to_pred":24.1051,"chamfer_symmetric":16.8126,"hausdorff":83.5745,"precision@1%":0.1074,"recall@1%":0.0611,"fscore@1%":0.0779,"precision@2%":0.2526,"recall@2%":0.1512,"fscore@2%":0.1891,"precision@5%":0.7045,"recall@5%":0.3397,"fscore@5%":0.4583},{"sample_id":"R-LS-P-LO-31/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":0.778472,"num_pred":15254,"num_gt":1248339,"gt_diagonal":227.0516,"chamfer_pred_to_gt":10.2796,"chamfer_gt_to_pred":22.3666,"chamfer_symmetric":16.3231,"hausdorff":79.9075,"precision@1%":0.1321,"recall@1%":0.084,"fscore@1%":0.1027,"precision@2%":0.2738,"recall@2%":0.1767,"fscore@2%":0.2147,"precision@5%":0.68,"recall@5%":0.3353,"fscore@5%":0.4492},{"sample_id":"R-LS-P-LO-31/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.422159,"num_pred":46540,"num_gt":1130457,"gt_diagonal":230.8899,"chamfer_pred_to_gt":12.7526,"chamfer_gt_to_pred":30.6733,"chamfer_symmetric":21.713,"hausdorff":91.4737,"precision@1%":0.132,"recall@1%":0.0773,"fscore@1%":0.0975,"precision@2%":0.3042,"recall@2%":0.1112,"fscore@2%":0.1628,"precision@5%":0.6071,"recall@5%":0.1867,"fscore@5%":0.2856},{"sample_id":"R-LS-P-LO-31/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.61776,"num_pred":44678,"num_gt":1149549,"gt_diagonal":230.4155,"chamfer_pred_to_gt":15.5498,"chamfer_gt_to_pred":18.3568,"chamfer_symmetric":16.9533,"hausdorff":78.3972,"precision@1%":0.0763,"recall@1%":0.1382,"fscore@1%":0.0984,"precision@2%":0.1786,"recall@2%":0.2286,"fscore@2%":0.2005,"precision@5%":0.5009,"recall@5%":0.3888,"fscore@5%":0.4377},{"sample_id":"R-MS-I-HI-11/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":0.925169,"num_pred":7313,"num_gt":1257412,"gt_diagonal":226.7558,"chamfer_pred_to_gt":8.9626,"chamfer_gt_to_pred":26.7561,"chamfer_symmetric":17.8593,"hausdorff":81.0232,"precision@1%":0.1575,"recall@1%":0.0428,"fscore@1%":0.0673,"precision@2%":0.3587,"recall@2%":0.0847,"fscore@2%":0.1371,"precision@5%":0.7414,"recall@5%":0.2234,"fscore@5%":0.3434},{"sample_id":"R-MS-I-HI-11/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":0.852315,"num_pred":7285,"num_gt":1258715,"gt_diagonal":226.5149,"chamfer_pred_to_gt":9.3667,"chamfer_gt_to_pred":27.1689,"chamfer_symmetric":18.2678,"hausdorff":79.3755,"precision@1%":0.197,"recall@1%":0.0367,"fscore@1%":0.0618,"precision@2%":0.3595,"recall@2%":0.0727,"fscore@2%":0.1209,"precision@5%":0.7067,"recall@5%":0.1924,"fscore@5%":0.3024},{"sample_id":"R-MS-I-HI-11/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.363307,"num_pred":36046,"num_gt":1193109,"gt_diagonal":227.0446,"chamfer_pred_to_gt":6.6397,"chamfer_gt_to_pred":26.3196,"chamfer_symmetric":16.4796,"hausdorff":85.0249,"precision@1%":0.2565,"recall@1%":0.0524,"fscore@1%":0.087,"precision@2%":0.5448,"recall@2%":0.0932,"fscore@2%":0.1591,"precision@5%":0.8524,"recall@5%":0.1983,"fscore@5%":0.3218},{"sample_id":"R-MS-I-HI-11/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.443225,"num_pred":31471,"num_gt":1199363,"gt_diagonal":227.7921,"chamfer_pred_to_gt":7.0904,"chamfer_gt_to_pred":27.0462,"chamfer_symmetric":17.0683,"hausdorff":90.9617,"precision@1%":0.2022,"recall@1%":0.0474,"fscore@1%":0.0768,"precision@2%":0.4601,"recall@2%":0.0833,"fscore@2%":0.1411,"precision@5%":0.836,"recall@5%":0.1935,"fscore@5%":0.3143},{"sample_id":"R-MS-I-HI-8/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":0.975713,"num_pred":10836,"num_gt":1262850,"gt_diagonal":227.2834,"chamfer_pred_to_gt":6.4924,"chamfer_gt_to_pred":24.6347,"chamfer_symmetric":15.5635,"hausdorff":77.7851,"precision@1%":0.2195,"recall@1%":0.0545,"fscore@1%":0.0873,"precision@2%":0.4705,"recall@2%":0.0959,"fscore@2%":0.1593,"precision@5%":0.8414,"recall@5%":0.2369,"fscore@5%":0.3697},{"sample_id":"R-MS-I-HI-8/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":1.10505,"num_pred":11483,"num_gt":1262300,"gt_diagonal":226.7895,"chamfer_pred_to_gt":7.367,"chamfer_gt_to_pred":28.2518,"chamfer_symmetric":17.8094,"hausdorff":81.9102,"precision@1%":0.1948,"recall@1%":0.06,"fscore@1%":0.0917,"precision@2%":0.3977,"recall@2%":0.1033,"fscore@2%":0.164,"precision@5%":0.7758,"recall@5%":0.2035,"fscore@5%":0.3224},{"sample_id":"R-MS-I-HI-8/1_single/orientation_c","tag":"sparse","alignment":"centroid+scale","scale_factor":1.530683,"num_pred":9447,"num_gt":1259952,"gt_diagonal":226.9537,"chamfer_pred_to_gt":11.6461,"chamfer_gt_to_pred":25.1761,"chamfer_symmetric":18.4111,"hausdorff":76.0813,"precision@1%":0.1201,"recall@1%":0.0836,"fscore@1%":0.0986,"precision@2%":0.2593,"recall@2%":0.1501,"fscore@2%":0.1902,"precision@5%":0.5525,"recall@5%":0.263,"fscore@5%":0.3564},{"sample_id":"R-MS-I-HI-8/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.308574,"num_pred":60731,"num_gt":1158958,"gt_diagonal":228.7818,"chamfer_pred_to_gt":9.4154,"chamfer_gt_to_pred":24.4497,"chamfer_symmetric":16.9325,"hausdorff":60.5043,"precision@1%":0.1459,"recall@1%":0.0458,"fscore@1%":0.0698,"precision@2%":0.3235,"recall@2%":0.0863,"fscore@2%":0.1363,"precision@5%":0.7817,"recall@5%":0.22,"fscore@5%":0.3433},{"sample_id":"R-MS-I-HI-8/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.37188,"num_pred":63704,"num_gt":1127219,"gt_diagonal":229.5227,"chamfer_pred_to_gt":8.6913,"chamfer_gt_to_pred":28.5037,"chamfer_symmetric":18.5975,"hausdorff":81.3477,"precision@1%":0.1902,"recall@1%":0.0486,"fscore@1%":0.0775,"precision@2%":0.3925,"recall@2%":0.0767,"fscore@2%":0.1284,"precision@5%":0.7505,"recall@5%":0.1746,"fscore@5%":0.2833},{"sample_id":"R-MS-I-LO-13/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":0.848071,"num_pred":3156,"num_gt":1271004,"gt_diagonal":226.3478,"chamfer_pred_to_gt":8.9743,"chamfer_gt_to_pred":27.0705,"chamfer_symmetric":18.0224,"hausdorff":87.8314,"precision@1%":0.2053,"recall@1%":0.0272,"fscore@1%":0.0481,"precision@2%":0.3986,"recall@2%":0.0767,"fscore@2%":0.1287,"precision@5%":0.8042,"recall@5%":0.2326,"fscore@5%":0.3609},{"sample_id":"R-MS-I-LO-13/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":0.899415,"num_pred":3528,"num_gt":1270462,"gt_diagonal":226.4275,"chamfer_pred_to_gt":7.9579,"chamfer_gt_to_pred":29.39,"chamfer_symmetric":18.6739,"hausdorff":91.9334,"precision@1%":0.1695,"recall@1%":0.028,"fscore@1%":0.048,"precision@2%":0.4048,"recall@2%":0.069,"fscore@2%":0.1179,"precision@5%":0.892,"recall@5%":0.2037,"fscore@5%":0.3317},{"sample_id":"R-MS-I-LO-13/1_single/orientation_c","tag":"sparse","alignment":"centroid+scale","scale_factor":0.937268,"num_pred":3651,"num_gt":1271207,"gt_diagonal":226.6394,"chamfer_pred_to_gt":8.942,"chamfer_gt_to_pred":30.9671,"chamfer_symmetric":19.9546,"hausdorff":102.8792,"precision@1%":0.2161,"recall@1%":0.0284,"fscore@1%":0.0502,"precision@2%":0.4467,"recall@2%":0.0644,"fscore@2%":0.1126,"precision@5%":0.8578,"recall@5%":0.164,"fscore@5%":0.2754},{"sample_id":"R-MS-I-LO-13/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.712079,"num_pred":31062,"num_gt":1225049,"gt_diagonal":226.5682,"chamfer_pred_to_gt":15.6246,"chamfer_gt_to_pred":25.1593,"chamfer_symmetric":20.392,"hausdorff":76.963,"precision@1%":0.1102,"recall@1%":0.0966,"fscore@1%":0.103,"precision@2%":0.1973,"recall@2%":0.1506,"fscore@2%":0.1708,"precision@5%":0.4156,"recall@5%":0.2632,"fscore@5%":0.3223},{"sample_id":"R-MS-I-LO-13/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.76571,"num_pred":46329,"num_gt":1226749,"gt_diagonal":226.8561,"chamfer_pred_to_gt":11.4989,"chamfer_gt_to_pred":25.1986,"chamfer_symmetric":18.3488,"hausdorff":75.1345,"precision@1%":0.1672,"recall@1%":0.082,"fscore@1%":0.11,"precision@2%":0.3173,"recall@2%":0.1246,"fscore@2%":0.1789,"precision@5%":0.61,"recall@5%":0.2466,"fscore@5%":0.3512},{"sample_id":"R-MS-I-LO-14/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":0.777739,"num_pred":5302,"num_gt":1270309,"gt_diagonal":226.2763,"chamfer_pred_to_gt":9.6753,"chamfer_gt_to_pred":25.5772,"chamfer_symmetric":17.6263,"hausdorff":75.1606,"precision@1%":0.1777,"recall@1%":0.0347,"fscore@1%":0.058,"precision@2%":0.3876,"recall@2%":0.0869,"fscore@2%":0.142,"precision@5%":0.7605,"recall@5%":0.2135,"fscore@5%":0.3334},{"sample_id":"R-MS-I-LO-14/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":0.751477,"num_pred":5066,"num_gt":1268670,"gt_diagonal":226.7883,"chamfer_pred_to_gt":7.0841,"chamfer_gt_to_pred":25.3953,"chamfer_symmetric":16.2397,"hausdorff":66.5786,"precision@1%":0.2493,"recall@1%":0.0256,"fscore@1%":0.0464,"precision@2%":0.5458,"recall@2%":0.0626,"fscore@2%":0.1123,"precision@5%":0.8689,"recall@5%":0.1888,"fscore@5%":0.3102},{"sample_id":"R-MS-I-LO-14/1_single/orientation_c","tag":"sparse","alignment":"centroid+scale","scale_factor":0.83888,"num_pred":4106,"num_gt":1267341,"gt_diagonal":226.7029,"chamfer_pred_to_gt":7.9562,"chamfer_gt_to_pred":23.1595,"chamfer_symmetric":15.5579,"hausdorff":61.4458,"precision@1%":0.2224,"recall@1%":0.0364,"fscore@1%":0.0626,"precision@2%":0.4547,"recall@2%":0.0927,"fscore@2%":0.1541,"precision@5%":0.8249,"recall@5%":0.2561,"fscore@5%":0.3908},{"sample_id":"R-MS-I-LO-14/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.612187,"num_pred":28948,"num_gt":1218162,"gt_diagonal":226.7046,"chamfer_pred_to_gt":14.3003,"chamfer_gt_to_pred":18.6597,"chamfer_symmetric":16.48,"hausdorff":75.6531,"precision@1%":0.1258,"recall@1%":0.1179,"fscore@1%":0.1217,"precision@2%":0.2504,"recall@2%":0.1845,"fscore@2%":0.2125,"precision@5%":0.5294,"recall@5%":0.3651,"fscore@5%":0.4322},{"sample_id":"R-MS-I-LO-14/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.606438,"num_pred":33421,"num_gt":1202369,"gt_diagonal":227.1628,"chamfer_pred_to_gt":12.7035,"chamfer_gt_to_pred":21.7856,"chamfer_symmetric":17.2446,"hausdorff":67.3277,"precision@1%":0.1334,"recall@1%":0.0928,"fscore@1%":0.1095,"precision@2%":0.2764,"recall@2%":0.1539,"fscore@2%":0.1977,"precision@5%":0.5879,"recall@5%":0.3043,"fscore@5%":0.4011},{"sample_id":"R-MS-I-LO-21/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":0.7542,"num_pred":6767,"num_gt":1263894,"gt_diagonal":226.7214,"chamfer_pred_to_gt":11.3823,"chamfer_gt_to_pred":27.0696,"chamfer_symmetric":19.2259,"hausdorff":93.855,"precision@1%":0.1281,"recall@1%":0.0369,"fscore@1%":0.0573,"precision@2%":0.292,"recall@2%":0.0928,"fscore@2%":0.1408,"precision@5%":0.6861,"recall@5%":0.2489,"fscore@5%":0.3653},{"sample_id":"R-MS-I-LO-21/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":0.782455,"num_pred":4927,"num_gt":1266308,"gt_diagonal":227.1528,"chamfer_pred_to_gt":13.6863,"chamfer_gt_to_pred":26.7742,"chamfer_symmetric":20.2302,"hausdorff":88.2059,"precision@1%":0.1043,"recall@1%":0.0325,"fscore@1%":0.0496,"precision@2%":0.2346,"recall@2%":0.0859,"fscore@2%":0.1257,"precision@5%":0.6113,"recall@5%":0.2355,"fscore@5%":0.34},{"sample_id":"R-MS-I-LO-21/1_single/orientation_c","tag":"sparse","alignment":"centroid+scale","scale_factor":0.742617,"num_pred":6055,"num_gt":1264379,"gt_diagonal":226.6675,"chamfer_pred_to_gt":12.1387,"chamfer_gt_to_pred":26.9181,"chamfer_symmetric":19.5284,"hausdorff":89.938,"precision@1%":0.1146,"recall@1%":0.0338,"fscore@1%":0.0523,"precision@2%":0.2395,"recall@2%":0.0909,"fscore@2%":0.1318,"precision@5%":0.6844,"recall@5%":0.2462,"fscore@5%":0.3622},{"sample_id":"R-MS-I-LO-21/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.681716,"num_pred":37358,"num_gt":1200523,"gt_diagonal":227.1137,"chamfer_pred_to_gt":15.4483,"chamfer_gt_to_pred":22.8977,"chamfer_symmetric":19.173,"hausdorff":74.0606,"precision@1%":0.0878,"recall@1%":0.0904,"fscore@1%":0.0891,"precision@2%":0.193,"recall@2%":0.1507,"fscore@2%":0.1692,"precision@5%":0.4699,"recall@5%":0.2912,"fscore@5%":0.3595},{"sample_id":"R-MS-I-LO-21/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.758451,"num_pred":33402,"num_gt":1182220,"gt_diagonal":228.7548,"chamfer_pred_to_gt":12.9958,"chamfer_gt_to_pred":18.4771,"chamfer_symmetric":15.7365,"hausdorff":67.9486,"precision@1%":0.1213,"recall@1%":0.1452,"fscore@1%":0.1322,"precision@2%":0.2578,"recall@2%":0.2266,"fscore@2%":0.2412,"precision@5%":0.5689,"recall@5%":0.3876,"fscore@5%":0.4611},{"sample_id":"R-MS-I-LO-22/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":1.02234,"num_pred":8747,"num_gt":1265151,"gt_diagonal":226.445,"chamfer_pred_to_gt":8.7173,"chamfer_gt_to_pred":30.4346,"chamfer_symmetric":19.5759,"hausdorff":92.3782,"precision@1%":0.173,"recall@1%":0.0304,"fscore@1%":0.0517,"precision@2%":0.3697,"recall@2%":0.0759,"fscore@2%":0.126,"precision@5%":0.728,"recall@5%":0.2184,"fscore@5%":0.3361},{"sample_id":"R-MS-I-LO-22/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":1.058757,"num_pred":4956,"num_gt":1258783,"gt_diagonal":227.6004,"chamfer_pred_to_gt":7.4737,"chamfer_gt_to_pred":29.3167,"chamfer_symmetric":18.3952,"hausdorff":86.165,"precision@1%":0.1836,"recall@1%":0.0463,"fscore@1%":0.0739,"precision@2%":0.409,"recall@2%":0.0962,"fscore@2%":0.1557,"precision@5%":0.8349,"recall@5%":0.2028,"fscore@5%":0.3263},{"sample_id":"R-MS-I-LO-22/1_single/orientation_c","tag":"sparse","alignment":"centroid+scale","scale_factor":1.231863,"num_pred":6846,"num_gt":1260563,"gt_diagonal":227.2519,"chamfer_pred_to_gt":9.0562,"chamfer_gt_to_pred":25.8581,"chamfer_symmetric":17.4571,"hausdorff":86.9503,"precision@1%":0.1221,"recall@1%":0.0432,"fscore@1%":0.0638,"precision@2%":0.3054,"recall@2%":0.0983,"fscore@2%":0.1488,"precision@5%":0.7585,"recall@5%":0.2542,"fscore@5%":0.3808},{"sample_id":"R-MS-I-LO-22/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.60843,"num_pred":47730,"num_gt":1156672,"gt_diagonal":227.9587,"chamfer_pred_to_gt":16.1394,"chamfer_gt_to_pred":21.7969,"chamfer_symmetric":18.9681,"hausdorff":68.2995,"precision@1%":0.0886,"recall@1%":0.1174,"fscore@1%":0.101,"precision@2%":0.2068,"recall@2%":0.1798,"fscore@2%":0.1924,"precision@5%":0.4533,"recall@5%":0.3183,"fscore@5%":0.374},{"sample_id":"R-MS-I-LO-22/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.506314,"num_pred":47654,"num_gt":1151513,"gt_diagonal":229.7262,"chamfer_pred_to_gt":13.4559,"chamfer_gt_to_pred":27.3144,"chamfer_symmetric":20.3851,"hausdorff":86.4848,"precision@1%":0.1018,"recall@1%":0.0936,"fscore@1%":0.0975,"precision@2%":0.2459,"recall@2%":0.134,"fscore@2%":0.1735,"precision@5%":0.5538,"recall@5%":0.2276,"fscore@5%":0.3226},{"sample_id":"R-MS-I-LO-23/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":1.020227,"num_pred":2196,"num_gt":1266975,"gt_diagonal":226.3999,"chamfer_pred_to_gt":14.0051,"chamfer_gt_to_pred":28.7786,"chamfer_symmetric":21.3919,"hausdorff":88.3922,"precision@1%":0.0874,"recall@1%":0.0205,"fscore@1%":0.0333,"precision@2%":0.1931,"recall@2%":0.0634,"fscore@2%":0.0954,"precision@5%":0.536,"recall@5%":0.224,"fscore@5%":0.3159},{"sample_id":"R-MS-I-LO-23/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":0.675793,"num_pred":3717,"num_gt":1265536,"gt_diagonal":226.9899,"chamfer_pred_to_gt":8.5331,"chamfer_gt_to_pred":20.9238,"chamfer_symmetric":14.7284,"hausdorff":80.2678,"precision@1%":0.1773,"recall@1%":0.0395,"fscore@1%":0.0645,"precision@2%":0.3831,"recall@2%":0.126,"fscore@2%":0.1896,"precision@5%":0.8052,"recall@5%":0.3545,"fscore@5%":0.4923},{"sample_id":"R-MS-I-LO-23/1_single/orientation_c","tag":"sparse","alignment":"centroid+scale","scale_factor":0.831784,"num_pred":3750,"num_gt":1266813,"gt_diagonal":226.949,"chamfer_pred_to_gt":9.9083,"chamfer_gt_to_pred":25.0969,"chamfer_symmetric":17.5026,"hausdorff":74.332,"precision@1%":0.1128,"recall@1%":0.0271,"fscore@1%":0.0437,"precision@2%":0.2744,"recall@2%":0.0768,"fscore@2%":0.12,"precision@5%":0.7227,"recall@5%":0.2462,"fscore@5%":0.3673},{"sample_id":"R-MS-I-LO-23/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.618132,"num_pred":13208,"num_gt":1191407,"gt_diagonal":227.7582,"chamfer_pred_to_gt":17.5095,"chamfer_gt_to_pred":24.6917,"chamfer_symmetric":21.1006,"hausdorff":81.2177,"precision@1%":0.0756,"recall@1%":0.0564,"fscore@1%":0.0646,"precision@2%":0.1679,"recall@2%":0.1237,"fscore@2%":0.1424,"precision@5%":0.3893,"recall@5%":0.2449,"fscore@5%":0.3007},{"sample_id":"R-MS-I-LO-23/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.469055,"num_pred":16374,"num_gt":1206942,"gt_diagonal":227.7771,"chamfer_pred_to_gt":10.0215,"chamfer_gt_to_pred":30.0694,"chamfer_symmetric":20.0454,"hausdorff":84.8654,"precision@1%":0.1194,"recall@1%":0.0475,"fscore@1%":0.068,"precision@2%":0.3283,"recall@2%":0.0836,"fscore@2%":0.1333,"precision@5%":0.6885,"recall@5%":0.1757,"fscore@5%":0.2799},{"sample_id":"R-MS-I-LO-24/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":1.225317,"num_pred":3858,"num_gt":1270720,"gt_diagonal":226.5134,"chamfer_pred_to_gt":5.0551,"chamfer_gt_to_pred":28.5539,"chamfer_symmetric":16.8045,"hausdorff":78.7847,"precision@1%":0.2885,"recall@1%":0.0449,"fscore@1%":0.0777,"precision@2%":0.5531,"recall@2%":0.0896,"fscore@2%":0.1542,"precision@5%":0.9381,"recall@5%":0.2142,"fscore@5%":0.3488},{"sample_id":"R-MS-I-LO-24/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":1.379826,"num_pred":2709,"num_gt":1270206,"gt_diagonal":226.3681,"chamfer_pred_to_gt":10.4388,"chamfer_gt_to_pred":28.2503,"chamfer_symmetric":19.3445,"hausdorff":87.9191,"precision@1%":0.0879,"recall@1%":0.0296,"fscore@1%":0.0443,"precision@2%":0.1672,"recall@2%":0.074,"fscore@2%":0.1026,"precision@5%":0.6453,"recall@5%":0.2109,"fscore@5%":0.3179},{"sample_id":"R-MS-I-LO-24/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.720332,"num_pred":20276,"num_gt":1227637,"gt_diagonal":226.5525,"chamfer_pred_to_gt":13.1708,"chamfer_gt_to_pred":23.663,"chamfer_symmetric":18.4169,"hausdorff":78.7616,"precision@1%":0.1103,"recall@1%":0.076,"fscore@1%":0.09,"precision@2%":0.237,"recall@2%":0.1342,"fscore@2%":0.1714,"precision@5%":0.5006,"recall@5%":0.2731,"fscore@5%":0.3534},{"sample_id":"R-MS-I-LO-24/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.696361,"num_pred":35615,"num_gt":1201626,"gt_diagonal":226.9584,"chamfer_pred_to_gt":14.2248,"chamfer_gt_to_pred":23.7291,"chamfer_symmetric":18.977,"hausdorff":78.4374,"precision@1%":0.1221,"recall@1%":0.0981,"fscore@1%":0.1088,"precision@2%":0.2471,"recall@2%":0.1483,"fscore@2%":0.1853,"precision@5%":0.4956,"recall@5%":0.2826,"fscore@5%":0.3599},{"sample_id":"R-MS-O-LO-32/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":0.854094,"num_pred":10412,"num_gt":1268169,"gt_diagonal":226.2606,"chamfer_pred_to_gt":9.9912,"chamfer_gt_to_pred":27.8481,"chamfer_symmetric":18.9197,"hausdorff":87.3976,"precision@1%":0.1363,"recall@1%":0.055,"fscore@1%":0.0784,"precision@2%":0.3102,"recall@2%":0.1156,"fscore@2%":0.1684,"precision@5%":0.7003,"recall@5%":0.2573,"fscore@5%":0.3764},{"sample_id":"R-MS-O-LO-32/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":0.888983,"num_pred":7227,"num_gt":1267794,"gt_diagonal":228.1029,"chamfer_pred_to_gt":9.3481,"chamfer_gt_to_pred":25.7003,"chamfer_symmetric":17.5242,"hausdorff":87.0748,"precision@1%":0.153,"recall@1%":0.0347,"fscore@1%":0.0566,"precision@2%":0.3257,"recall@2%":0.1027,"fscore@2%":0.1562,"precision@5%":0.7147,"recall@5%":0.2825,"fscore@5%":0.4049},{"sample_id":"R-MS-O-LO-32/1_single/orientation_c","tag":"sparse","alignment":"centroid+scale","scale_factor":0.847999,"num_pred":7280,"num_gt":1257770,"gt_diagonal":227.1515,"chamfer_pred_to_gt":7.3597,"chamfer_gt_to_pred":26.3219,"chamfer_symmetric":16.8408,"hausdorff":84.5144,"precision@1%":0.176,"recall@1%":0.0475,"fscore@1%":0.0748,"precision@2%":0.4088,"recall@2%":0.0852,"fscore@2%":0.141,"precision@5%":0.8404,"recall@5%":0.2222,"fscore@5%":0.3515},{"sample_id":"R-MS-O-LO-32/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.609008,"num_pred":39463,"num_gt":1203502,"gt_diagonal":228.2073,"chamfer_pred_to_gt":16.1981,"chamfer_gt_to_pred":22.0916,"chamfer_symmetric":19.1449,"hausdorff":76.1074,"precision@1%":0.0924,"recall@1%":0.1296,"fscore@1%":0.1079,"precision@2%":0.1879,"recall@2%":0.2028,"fscore@2%":0.1951,"precision@5%":0.4326,"recall@5%":0.3297,"fscore@5%":0.3742},{"sample_id":"R-MS-O-LO-32/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.688733,"num_pred":43708,"num_gt":1194685,"gt_diagonal":228.0834,"chamfer_pred_to_gt":17.7897,"chamfer_gt_to_pred":22.3415,"chamfer_symmetric":20.0656,"hausdorff":68.7356,"precision@1%":0.0714,"recall@1%":0.1167,"fscore@1%":0.0886,"precision@2%":0.1608,"recall@2%":0.1852,"fscore@2%":0.1721,"precision@5%":0.3794,"recall@5%":0.3047,"fscore@5%":0.338},{"sample_id":"R-MS-P-LO-12/1_single/orientation_a","tag":"sparse","alignment":"centroid+scale","scale_factor":0.849468,"num_pred":4492,"num_gt":1259985,"gt_diagonal":226.5764,"chamfer_pred_to_gt":12.5855,"chamfer_gt_to_pred":25.1959,"chamfer_symmetric":18.8907,"hausdorff":78.4688,"precision@1%":0.1298,"recall@1%":0.0283,"fscore@1%":0.0465,"precision@2%":0.2522,"recall@2%":0.0797,"fscore@2%":0.1212,"precision@5%":0.4844,"recall@5%":0.2337,"fscore@5%":0.3153},{"sample_id":"R-MS-P-LO-12/1_single/orientation_b","tag":"sparse","alignment":"centroid+scale","scale_factor":0.711312,"num_pred":5213,"num_gt":1256928,"gt_diagonal":227.1081,"chamfer_pred_to_gt":9.3283,"chamfer_gt_to_pred":25.698,"chamfer_symmetric":17.5131,"hausdorff":80.5321,"precision@1%":0.1239,"recall@1%":0.0344,"fscore@1%":0.0538,"precision@2%":0.2617,"recall@2%":0.0868,"fscore@2%":0.1303,"precision@5%":0.7117,"recall@5%":0.2564,"fscore@5%":0.377},{"sample_id":"R-MS-P-LO-12/1_single/orientation_c","tag":"sparse","alignment":"centroid+scale","scale_factor":0.780195,"num_pred":6146,"num_gt":1253551,"gt_diagonal":227.0918,"chamfer_pred_to_gt":10.24,"chamfer_gt_to_pred":23.7235,"chamfer_symmetric":16.9818,"hausdorff":77.587,"precision@1%":0.0781,"recall@1%":0.034,"fscore@1%":0.0473,"precision@2%":0.1952,"recall@2%":0.1124,"fscore@2%":0.1427,"precision@5%":0.6858,"recall@5%":0.3138,"fscore@5%":0.4306},{"sample_id":"R-MS-P-LO-12/1_single/orientation_d","tag":"sparse","alignment":"centroid+scale","scale_factor":0.893795,"num_pred":6859,"num_gt":1249176,"gt_diagonal":228.1778,"chamfer_pred_to_gt":10.0015,"chamfer_gt_to_pred":22.2969,"chamfer_symmetric":16.1492,"hausdorff":76.2876,"precision@1%":0.0964,"recall@1%":0.0579,"fscore@1%":0.0724,"precision@2%":0.2261,"recall@2%":0.1462,"fscore@2%":0.1776,"precision@5%":0.675,"recall@5%":0.3357,"fscore@5%":0.4484},{"sample_id":"R-MS-P-LO-12/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.582796,"num_pred":30408,"num_gt":1129228,"gt_diagonal":229.5235,"chamfer_pred_to_gt":14.2451,"chamfer_gt_to_pred":19.7506,"chamfer_symmetric":16.9978,"hausdorff":65.8767,"precision@1%":0.1082,"recall@1%":0.1273,"fscore@1%":0.117,"precision@2%":0.2384,"recall@2%":0.2383,"fscore@2%":0.2384,"precision@5%":0.5531,"recall@5%":0.3871,"fscore@5%":0.4554},{"sample_id":"R-MS-P-LO-12/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.525442,"num_pred":35725,"num_gt":1133225,"gt_diagonal":232.3502,"chamfer_pred_to_gt":14.6908,"chamfer_gt_to_pred":23.4307,"chamfer_symmetric":19.0607,"hausdorff":69.496,"precision@1%":0.0864,"recall@1%":0.0981,"fscore@1%":0.0919,"precision@2%":0.1999,"recall@2%":0.1584,"fscore@2%":0.1767,"precision@5%":0.4988,"recall@5%":0.2668,"fscore@5%":0.3476},{"sample_id":"R-TS-I-HI-6/1_single","tag":"sparse","alignment":"centroid+scale","scale_factor":0.860854,"num_pred":4738,"num_gt":1272196,"gt_diagonal":226.3602,"chamfer_pred_to_gt":8.0445,"chamfer_gt_to_pred":26.3238,"chamfer_symmetric":17.1842,"hausdorff":83.0192,"precision@1%":0.2271,"recall@1%":0.0282,"fscore@1%":0.0501,"precision@2%":0.4249,"recall@2%":0.0657,"fscore@2%":0.1137,"precision@5%":0.8077,"recall@5%":0.1988,"fscore@5%":0.3191},{"sample_id":"R-TS-I-HI-6/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.806255,"num_pred":40605,"num_gt":1249429,"gt_diagonal":226.3276,"chamfer_pred_to_gt":13.8287,"chamfer_gt_to_pred":25.3216,"chamfer_symmetric":19.5752,"hausdorff":77.7873,"precision@1%":0.1286,"recall@1%":0.0793,"fscore@1%":0.0981,"precision@2%":0.219,"recall@2%":0.1354,"fscore@2%":0.1674,"precision@5%":0.4672,"recall@5%":0.2819,"fscore@5%":0.3516},{"sample_id":"R-TS-I-HI-6/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":1.070026,"num_pred":25167,"num_gt":1254895,"gt_diagonal":226.6035,"chamfer_pred_to_gt":14.1763,"chamfer_gt_to_pred":26.9278,"chamfer_symmetric":20.5521,"hausdorff":93.8474,"precision@1%":0.1362,"recall@1%":0.0805,"fscore@1%":0.1012,"precision@2%":0.2371,"recall@2%":0.1335,"fscore@2%":0.1708,"precision@5%":0.48,"recall@5%":0.2599,"fscore@5%":0.3372},{"sample_id":"R-TS-P-LO-15/1_single","tag":"sparse","alignment":"centroid+scale","scale_factor":0.935232,"num_pred":4064,"num_gt":1272239,"gt_diagonal":226.2229,"chamfer_pred_to_gt":11.0555,"chamfer_gt_to_pred":32.0275,"chamfer_symmetric":21.5415,"hausdorff":85.1803,"precision@1%":0.1585,"recall@1%":0.0218,"fscore@1%":0.0383,"precision@2%":0.3519,"recall@2%":0.0561,"fscore@2%":0.0968,"precision@5%":0.7311,"recall@5%":0.183,"fscore@5%":0.2927},{"sample_id":"R-TS-P-LO-15/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.977426,"num_pred":48978,"num_gt":1236154,"gt_diagonal":226.569,"chamfer_pred_to_gt":18.8206,"chamfer_gt_to_pred":25.4687,"chamfer_symmetric":22.1446,"hausdorff":78.6153,"precision@1%":0.0919,"recall@1%":0.0992,"fscore@1%":0.0954,"precision@2%":0.1696,"recall@2%":0.1473,"fscore@2%":0.1577,"precision@5%":0.3738,"recall@5%":0.2643,"fscore@5%":0.3096},{"sample_id":"R-TS-P-LO-15/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.602464,"num_pred":34234,"num_gt":1248618,"gt_diagonal":226.5229,"chamfer_pred_to_gt":9.3218,"chamfer_gt_to_pred":25.1936,"chamfer_symmetric":17.2577,"hausdorff":76.2262,"precision@1%":0.2094,"recall@1%":0.0597,"fscore@1%":0.0929,"precision@2%":0.3664,"recall@2%":0.1101,"fscore@2%":0.1693,"precision@5%":0.6733,"recall@5%":0.2515,"fscore@5%":0.3662},{"sample_id":"T-TS-P-HI-25/1_single","tag":"sparse","alignment":"centroid+scale","scale_factor":0.88633,"num_pred":3011,"num_gt":1272642,"gt_diagonal":226.3779,"chamfer_pred_to_gt":10.2549,"chamfer_gt_to_pred":30.3286,"chamfer_symmetric":20.2918,"hausdorff":94.3977,"precision@1%":0.1966,"recall@1%":0.0293,"fscore@1%":0.051,"precision@2%":0.3643,"recall@2%":0.0801,"fscore@2%":0.1313,"precision@5%":0.7263,"recall@5%":0.1948,"fscore@5%":0.3072},{"sample_id":"T-TS-P-HI-25/2_multiple","tag":"sparse","alignment":"centroid+scale","scale_factor":0.463486,"num_pred":25064,"num_gt":1220896,"gt_diagonal":227.5168,"chamfer_pred_to_gt":9.8214,"chamfer_gt_to_pred":26.9081,"chamfer_symmetric":18.3647,"hausdorff":78.4921,"precision@1%":0.1822,"recall@1%":0.0578,"fscore@1%":0.0877,"precision@2%":0.3131,"recall@2%":0.0877,"fscore@2%":0.1371,"precision@5%":0.6492,"recall@5%":0.1953,"fscore@5%":0.3003},{"sample_id":"T-TS-P-HI-25/3_stacked","tag":"sparse","alignment":"centroid+scale","scale_factor":0.80156,"num_pred":19245,"num_gt":1241843,"gt_diagonal":227.6283,"chamfer_pred_to_gt":11.6576,"chamfer_gt_to_pred":22.7976,"chamfer_symmetric":17.2276,"hausdorff":80.1236,"precision@1%":0.2092,"recall@1%":0.0552,"fscore@1%":0.0874,"precision@2%":0.3204,"recall@2%":0.103,"fscore@2%":0.1559,"precision@5%":0.59,"recall@5%":0.2718,"fscore@5%":0.3722}];
+
+DATA.forEach(r => {
+  r.f1 = r['fscore@1%']    ?? null;
+  r.f2 = r['fscore@2%']    ?? null;
+  r.f5 = r['fscore@5%']    ?? null;
+  r.p5 = r['precision@5%'] ?? null;
+  r.r5 = r['recall@5%']    ?? null;
+});
+
+const samples = new Set(DATA.map(r => r.sample_id)).size;
+document.getElementById('sub').textContent =
+  DATA.length + ' result(s) across ' + samples + ' sample(s)';
+
+let sk = 'sample_id', sd = 1;
+
+function sort(k) {
+  if (sk === k) sd *= -1; else { sk = k; sd = 1; }
+  document.querySelectorAll('th').forEach(th => th.className = '');
+  const keys = ['sample_id','tag','scale_factor','num_pred','num_gt',
+                 'chamfer_symmetric','hausdorff','f1','f2','f5','p5','r5','alignment'];
+  const th = document.querySelectorAll('th')[keys.indexOf(k)];
+  if (th) th.className = sd === 1 ? 'asc' : 'desc';
+  render();
+}
+
+const fF = v => {
+  if (v == null) return '<span class="dim">—</span>';
+  const c = v >= 0.5 ? 'g' : v >= 0.3 ? 'y' : 'r';
+  return '<span class="' + c + '">' + v.toFixed(3) + '</span>';
+};
+const fC = v => {
+  if (v == null) return '<span class="dim">—</span>';
+  const c = v < 10 ? 'g' : v < 20 ? 'y' : 'r';
+  return '<span class="' + c + '">' + v.toFixed(2) + '</span>';
+};
+const fH = v => {
+  if (v == null) return '<span class="dim">—</span>';
+  const c = v < 40 ? 'g' : v < 80 ? 'y' : 'r';
+  return '<span class="' + c + '">' + v.toFixed(1) + '</span>';
+};
+const fS = v => {
+  if (v == null) return '<span class="dim">—</span>';
+  const d = Math.abs(v - 1);
+  const c = d < 0.1 ? 'g' : d < 0.3 ? 'y' : 'r';
+  return '<span class="' + c + '">' + v.toFixed(3) + '</span>';
+};
+const fN = v => {
+  if (v == null) return '<span class="dim">—</span>';
+  if (v >= 1e6) return (v/1e6).toFixed(2)+'M';
+  if (v >= 1e3) return (v/1e3).toFixed(1)+'K';
+  return String(v);
+};
+
+function render() {
+  const q   = document.getElementById('q').value.toLowerCase();
+  const tag = document.getElementById('tag').value;
+  let rows  = DATA.filter(r =>
+    r.sample_id.toLowerCase().includes(q) &&
+    (tag === '' || r.tag === tag)
+  );
+  rows.sort((a, b) => {
+    let va = a[sk] ?? '', vb = b[sk] ?? '';
+    return typeof va === 'string' ? sd * va.localeCompare(vb) : sd * (va - vb);
+  });
+  document.getElementById('count').textContent = rows.length + ' shown';
+  document.getElementById('tb').innerHTML = rows.map(r => {
+    const tc = r.tag === 'sparse' ? 'sp' : 'de';
+    return '<tr><td>' + r.sample_id +
+      '</td><td class="' + tc + '">' + r.tag +
+      '</td><td>' + fS(r.scale_factor) +
+      '</td><td>' + fN(r.num_pred) +
+      '</td><td>' + fN(r.num_gt) +
+      '</td><td>' + fC(r.chamfer_symmetric) +
+      '</td><td>' + fH(r.hausdorff) +
+      '</td><td>' + fF(r.f1) +
+      '</td><td>' + fF(r.f2) +
+      '</td><td>' + fF(r.f5) +
+      '</td><td>' + fF(r.p5) +
+      '</td><td>' + fF(r.r5) +
+      '</td><td class="dim">' + (r.alignment || '—') + '</td></tr>';
+  }).join('');
+}
+
+render();
+</script>
+</body>
+</html>
