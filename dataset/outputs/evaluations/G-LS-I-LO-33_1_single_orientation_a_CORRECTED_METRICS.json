@@ -1,0 +1,12 @@
+{
+  "pred_point_count": 8,
+  "gt_point_count": 1234775,
+  "chamfer_distance": 138.30989558027676,
+  "pred_to_gt_distance": 147.42607903625577,
+  "gt_to_pred_distance": 129.19371212429778,
+  "hausdorff_distance": 229.22929096250948,
+  "completeness_@0.1": 0.0,
+  "accuracy_@0.1": 0.0,
+  "f_score_@0.1": 0.0,
+  "note": "Computed with corrected KDTree-based evaluator on existing reconstruction"
+}

@@ -1,0 +1,582 @@
+{
+  "summary": {
+    "total_parts": 26,
+    "complexity_level": "1_single",
+    "successful": 1,
+    "failed": 0
+  },
+  "details": {
+    "total_parts": 26,
+    "complexity_level": "1_single",
+    "parts": {
+      "G-LS-I-LO-33": {
+        "part_code": "G-LS-I-LO-33",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "G-LS-P-LO-34": {
+        "part_code": "G-LS-P-LO-34",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "G-MS-I-HI-4": {
+        "part_code": "G-MS-I-HI-4",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "G-MS-I-LO-1": {
+        "part_code": "G-MS-I-LO-1",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "G-MS-O-LO-10": {
+        "part_code": "G-MS-O-LO-10",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_c": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "G-MS-O-LO-2": {
+        "part_code": "G-MS-O-LO-2",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "default": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "G-TS-O-HI-7": {
+        "part_code": "G-TS-O-HI-7",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "default": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "G-TS-P-HI-3": {
+        "part_code": "G-TS-P-HI-3",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "default": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "G-TS-P-HI-5": {
+        "part_code": "G-TS-P-HI-5",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "default": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "M-MS-P-HI-35": {
+        "part_code": "M-MS-P-HI-35",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_c": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_d": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "M-TS-P-HI-16": {
+        "part_code": "M-TS-P-HI-16",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "default": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-LS-I-HI-36": {
+        "part_code": "R-LS-I-HI-36",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_d": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-LS-P-LO-31": {
+        "part_code": "R-LS-P-LO-31",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-MS-I-HI-11": {
+        "part_code": "R-MS-I-HI-11",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-MS-I-HI-8": {
+        "part_code": "R-MS-I-HI-8",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_c": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-MS-I-LO-13": {
+        "part_code": "R-MS-I-LO-13",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_c": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-MS-I-LO-14": {
+        "part_code": "R-MS-I-LO-14",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_c": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-MS-I-LO-21": {
+        "part_code": "R-MS-I-LO-21",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_c": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-MS-I-LO-22": {
+        "part_code": "R-MS-I-LO-22",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_c": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-MS-I-LO-23": {
+        "part_code": "R-MS-I-LO-23",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_c": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-MS-I-LO-24": {
+        "part_code": "R-MS-I-LO-24",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-MS-O-LO-32": {
+        "part_code": "R-MS-O-LO-32",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_c": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-MS-P-LO-12": {
+        "part_code": "R-MS-P-LO-12",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "orientation_a": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_b": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_c": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          },
+          "orientation_d": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-TS-I-HI-6": {
+        "part_code": "R-TS-I-HI-6",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "default": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      },
+      "R-TS-P-LO-15": {
+        "part_code": "R-TS-P-LO-15",
+        "complexity_level": "1_single",
+        "status": "success",
+        "error": null,
+        "orientations": {
+          "default": {
+            "status": "success",
+            "video_path": "R-TS-P-LO-15/1_single/video.MP4",
+            "metrics": {
+              "pred_point_count": 785,
+              "gt_point_count": 1272239,
+              "point_count_ratio": 0.0006170224305338855,
+              "chamfer_distance": 109.85733059594872,
+              "pred_to_gt_distance": 76.68137979230431,
+              "gt_to_pred_distance": 143.03328139959314,
+              "hausdorff_distance": 235.63868909544385,
+              "completeness_@0.05": 0.0,
+              "accuracy_@0.05": 0.0,
+              "f_score_@0.05": 0.0,
+              "completeness_@0.1": 0.0,
+              "accuracy_@0.1": 0.0,
+              "f_score_@0.1": 0.0,
+              "completeness_@0.2": 0.0,
+              "accuracy_@0.2": 0.0,
+              "f_score_@0.2": 0.0
+            },
+            "files_saved": [
+              "outputs/point_clouds/R-TS-P-LO-15_default_reconstructed.ply",
+              "outputs/evaluations/R-TS-P-LO-15_default_metrics.json"
+            ]
+          }
+        }
+      },
+      "T-TS-P-HI-25": {
+        "part_code": "T-TS-P-HI-25",
+        "complexity_level": "1_single",
+        "status": "partial",
+        "error": null,
+        "orientations": {
+          "default": {
+            "status": "failed",
+            "error": "No 3D points reconstructed"
+          }
+        }
+      }
+    }
+  },
+  "aggregated_metrics": {
+    "pred_point_count": {
+      "mean": 785.0,
+      "std": 0.0,
+      "min": 785.0,
+      "max": 785.0,
+      "count": 1
+    },
+    "gt_point_count": {
+      "mean": 1272239.0,
+      "std": 0.0,
+      "min": 1272239.0,
+      "max": 1272239.0,
+      "count": 1
+    },
+    "point_count_ratio": {
+      "mean": 0.0006170224305338855,
+      "std": 0.0,
+      "min": 0.0006170224305338855,
+      "max": 0.0006170224305338855,
+      "count": 1
+    },
+    "chamfer_distance": {
+      "mean": 109.85733059594872,
+      "std": 0.0,
+      "min": 109.85733059594872,
+      "max": 109.85733059594872,
+      "count": 1
+    },
+    "pred_to_gt_distance": {
+      "mean": 76.68137979230431,
+      "std": 0.0,
+      "min": 76.68137979230431,
+      "max": 76.68137979230431,
+      "count": 1
+    },
+    "gt_to_pred_distance": {
+      "mean": 143.03328139959314,
+      "std": 0.0,
+      "min": 143.03328139959314,
+      "max": 143.03328139959314,
+      "count": 1
+    },
+    "hausdorff_distance": {
+      "mean": 235.63868909544385,
+      "std": 0.0,
+      "min": 235.63868909544385,
+      "max": 235.63868909544385,
+      "count": 1
+    },
+    "completeness_@0.05": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "count": 1
+    },
+    "accuracy_@0.05": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "count": 1
+    },
+    "f_score_@0.05": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "count": 1
+    },
+    "completeness_@0.1": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "count": 1
+    },
+    "accuracy_@0.1": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "count": 1
+    },
+    "f_score_@0.1": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "count": 1
+    },
+    "completeness_@0.2": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "count": 1
+    },
+    "accuracy_@0.2": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "count": 1
+    },
+    "f_score_@0.2": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "count": 1
+    }
+  }
+}

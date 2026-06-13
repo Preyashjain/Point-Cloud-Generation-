@@ -87,3 +87,5 @@ comprehensive_batch.log
 *.tmp
 *.bak
 .vscode/launch.json
+dataset/outputs/
+*.html

@@ -1,0 +1,18 @@
+{
+  "pred_point_count": 225,
+  "gt_point_count": 1250796,
+  "point_count_ratio": 0.00017988544894611112,
+  "chamfer_distance": 251.12731239100276,
+  "pred_to_gt_distance": 368.71489427113505,
+  "gt_to_pred_distance": 133.53973051087044,
+  "hausdorff_distance": 550.2088818538218,
+  "completeness_@0.05": 0.0,
+  "accuracy_@0.05": 0.0,
+  "f_score_@0.05": 0.0,
+  "completeness_@0.1": 0.0,
+  "accuracy_@0.1": 0.0,
+  "f_score_@0.1": 0.0,
+  "completeness_@0.2": 0.0,
+  "accuracy_@0.2": 0.0,
+  "f_score_@0.2": 0.0
+}
